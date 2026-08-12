@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#121212">
+<link rel="manifest" href="manifest.webmanifest">
+<title>Music Timeline Spotify</title>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:#121212;color:#fff;font-family:Arial,sans-serif;padding:20px}
+.app{max-width:480px;margin:auto}
+.card{background:#1d1d1d;border-radius:28px;padding:28px 20px;text-align:center;margin-top:12px}
+.logo{font-size:54px} h1{font-size:27px;margin:6px 0} .muted{opacity:.72;line-height:1.45}
+button{width:100%;display:block;border:0;border-radius:16px;padding:16px;margin-top:12px;font-size:17px;font-weight:700;cursor:pointer;background:#303030;color:#fff}
+.primary{background:#fff;color:#111} .spotify{background:#1ed760;color:#071b0d}
+#scannerView,#gameView,#answer{display:none}
+#reader{margin-top:16px;background:#000;border-radius:18px;overflow:hidden}
+.badge{display:inline-block;background:#2b2b2b;border-radius:999px;padding:7px 11px;margin:8px}
+.error{color:#ffb4b4;margin-top:12px}
+.player-wrap{position:relative;width:100%;height:152px;margin-top:16px;border-radius:16px;overflow:hidden;background:#000}
+#embed-iframe{width:100%;height:152px}
+.cover{position:absolute;inset:0;z-index:3;background:#171717;display:flex;align-items:center;justify-content:center;flex-direction:column;padding:18px}
+.year{font-size:44px;font-weight:800} .artist{font-size:20px;font-weight:700;margin-top:6px} .title{font-size:19px;margin-top:5px}
+.status{font-size:13px;opacity:.7;margin-top:10px;min-height:18px}
+</style>
+</head>
+<body>
+<main class="app">
+<section class="card" id="homeView">
+<div class="logo">🎧</div><h1>Music Timeline Spotify</h1>
+<p class="muted">Test Spotify Free con avvio dal secondo 42.</p>
+<button class="primary" id="scanBtn">📷 SCANSIONA CARTA</button>
+<button id="testBtn">🧪 PROVA CARTA 001</button>
+</section>
+
+<section class="card" id="scannerView">
+<div class="logo">📷</div><h1>Scansiona la carta</h1>
+<div id="reader"></div><div class="error" id="scanError"></div>
+<button id="cancelBtn">← ANNULLA</button>
+</section>
+
+<section class="card" id="gameView">
+<div class="logo">🎵</div><h1>Canzone misteriosa</h1>
+<p class="muted">La prova deve partire da <b>0:42</b>.</p>
+<div class="badge">Carta 001</div>
+
+<div class="player-wrap">
+  <div id="embed-iframe"></div>
+  <div class="cover" id="cover">
+    <div style="font-size:34px">🎧</div>
+    <div><b>Player nascosto</b></div>
+    <div class="muted">Titolo e artista restano coperti</div>
+  </div>
+</div>
+
+<button class="spotify" id="playBtn">▶ ASCOLTA DAL SECONDO 42</button>
+<div class="status" id="status">Caricamento Spotify…</div>
+
+<button id="revealBtn">👁 MOSTRA LA RISPOSTA</button>
+<div id="answer">
+<div class="year">2025</div>
+<div class="artist">Albert Pla, Kase.O</div>
+<div class="title">Todo me va bien</div>
+</div>
+
+<button class="primary" id="againBtn">📷 SCANSIONA UN'ALTRA CARTA</button>
+</section>
+</main>
+
+<script>
+const CARD={spotify:"https://open.spotify.com/track/2XGmrTpELLkcwelpEntk7n",startAt:42};
+let scanner=null, controller=null, apiReady=false;
+
+const H=document.getElementById("homeView"),S=document.getElementById("scannerView"),G=document.getElementById("gameView");
+function show(v){H.style.display=S.style.display=G.style.display="none";v.style.display="block"}
+
+async function stopScanner(){
+  if(scanner){try{await scanner.stop()}catch(e){} scanner=null; document.getElementById("reader").innerHTML="";}
+}
+
+async function startScanner(){
+  await stopScanner(); show(S); document.getElementById("scanError").textContent="";
+  scanner=new Html5Qrcode("reader");
+  try{
+    await scanner.start({facingMode:"environment"},{fps:10,qrbox:{width:240,height:240}},
+      async text=>{
+        let ok=false;
+        try{const u=new URL(text);ok=(u.searchParams.get("card")==="001")}catch(e){ok=/001/.test(text)}
+        if(ok){await stopScanner();openCard()}
+        else document.getElementById("scanError").textContent="Per ora il test riconosce solo la carta 001.";
+      },()=>{});
+  }catch(e){document.getElementById("scanError").textContent="Controlla il permesso della fotocamera.";}
+}
+
+function openCard(){
+  document.getElementById("answer").style.display="none";
+  document.getElementById("revealBtn").style.display="block";
+  document.getElementById("cover").style.display="flex";
+  show(G);
+  if(apiReady && controller) controller.loadEntity(CARD.spotify,false,CARD.startAt);
+}
+
+window.onSpotifyIframeApiReady=(IFrameAPI)=>{
+  const element=document.getElementById("embed-iframe");
+  IFrameAPI.createController(element,{width:"100%",height:"152",uri:CARD.spotify},(c)=>{
+    controller=c;apiReady=true;document.getElementById("status").textContent="Spotify pronto.";
+    controller.loadEntity(CARD.spotify,false,CARD.startAt);
+  });
+};
+
+document.getElementById("playBtn").onclick=()=>{
+  if(!controller){document.getElementById("status").textContent="Spotify non è ancora pronto.";return;}
+  document.getElementById("status").textContent="Avvio dal secondo 42…";
+  controller.loadEntity(CARD.spotify,false,CARD.startAt);
+  setTimeout(()=>{controller.play();document.getElementById("status").textContent="Verifica se parte da 0:42."; },250);
+};
+
+document.getElementById("revealBtn").onclick=function(){
+  document.getElementById("answer").style.display="block";
+  document.getElementById("cover").style.display="none";
+  this.style.display="none";
+};
+
+document.getElementById("scanBtn").onclick=startScanner;
+document.getElementById("againBtn").onclick=startScanner;
+document.getElementById("testBtn").onclick=openCard;
+document.getElementById("cancelBtn").onclick=async()=>{await stopScanner();show(H)};
+
+show(H);
+if("serviceWorker" in navigator)navigator.serviceWorker.register("./sw.js");
+</script>
+<script src="https://open.spotify.com/embed/iframe-api/v1" async></script>
+</body>
+</html>
