@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#121212">
+<title>Music Timeline Spotify</title>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:#121212;color:white;font-family:Arial,sans-serif;padding:20px}
+.app{max-width:480px;margin:auto}
+.card{background:#1d1d1d;border-radius:28px;padding:28px 20px;text-align:center;margin-top:12px}
+.logo{font-size:52px} h1{margin:7px 0;font-size:27px}
+.muted{opacity:.72;line-height:1.45}
+button{width:100%;border:0;border-radius:16px;padding:16px;margin-top:12px;font-size:17px;font-weight:700;background:#303030;color:white}
+.primary{background:white;color:#111} .spotify{background:#1ed760;color:#071b0d}
+#game,#scanner,#answer{display:none}
+#reader{margin-top:15px;background:#000;border-radius:18px;overflow:hidden}
+.player{margin-top:16px;border-radius:16px;overflow:hidden;background:#000}
+.status{font-size:13px;opacity:.75;margin:10px 0;min-height:18px}
+.year{font-size:46px;font-weight:800} .artist{font-size:20px;font-weight:bold} .title{font-size:19px;margin-top:5px}
+</style>
+</head>
+<body>
+<main class="app">
+<section class="card" id="home">
+<div class="logo">🎧</div><h1>Music Timeline Spotify</h1>
+<p class="muted">Test carta 001 — partenza dal secondo 42.</p>
+<button class="primary" id="test">🧪 PROVA CARTA 001</button>
+<button id="scan">📷 SCANSIONA CARTA</button>
+</section>
+
+<section class="card" id="scanner">
+<div class="logo">📷</div><h1>Scansiona carta</h1>
+<div id="reader"></div><div id="scanError" class="status"></div>
+<button id="cancel">← ANNULLA</button>
+</section>
+
+<section class="card" id="game">
+<div class="logo">🎵</div><h1>Canzone misteriosa</h1>
+<p class="muted">Spotify deve iniziare da <b>0:42</b>.</p>
+
+<div class="player">
+<iframe id="spotifyFrame"
+ src="https://open.spotify.com/embed/track/2XGmrTpELLkcwelpEntk7n?utm_source=generator"
+ width="100%" height="152" frameborder="0"
+ allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+ loading="eager"></iframe>
+</div>
+
+<button class="spotify" id="play42">▶ VAI AL SECONDO 42</button>
+<div class="status" id="status">Player Spotify caricato.</div>
+
+<button id="reveal">👁 MOSTRA LA RISPOSTA</button>
+<div id="answer">
+<div class="year">2025</div>
+<div class="artist">Albert Pla, Kase.O</div>
+<div class="title">Todo me va bien</div>
+</div>
+<button class="primary" id="again">📷 SCANSIONA UN'ALTRA CARTA</button>
+</section>
+</main>
+
+<script>
+let scanner=null;
+const uri="spotify:track:2XGmrTpELLkcwelpEntk7n";
+const home=document.getElementById("home");
+const game=document.getElementById("game");
+const scannerView=document.getElementById("scanner");
+
+function show(el){
+ home.style.display=game.style.display=scannerView.style.display="none";
+ el.style.display="block";
+}
+
+function openCard(){show(game);answer.style.display="none";reveal.style.display="block";}
+
+async function stopScan(){
+ if(scanner){try{await scanner.stop()}catch(e){}scanner=null;reader.innerHTML="";}
+}
+
+async function startScan(){
+ await stopScan();show(scannerView);scanError.textContent="";
+ scanner=new Html5Qrcode("reader");
+ try{
+  await scanner.start({facingMode:"environment"},{fps:10,qrbox:{width:240,height:240}},
+   async text=>{
+    let id=null;
+    try{id=new URL(text).searchParams.get("card")}catch(e){}
+    if(id==="001" || /001/.test(text)){await stopScan();openCard();}
+    else scanError.textContent="Per ora il test riconosce solo la carta 001.";
+   },()=>{});
+ }catch(e){scanError.textContent="Controlla il permesso della fotocamera.";}
+}
+
+test.onclick=openCard;
+scan.onclick=startScan;
+again.onclick=startScan;
+cancel.onclick=async()=>{await stopScan();show(home)};
+reveal.onclick=function(){answer.style.display="block";this.style.display="none"};
+
+// Carichiamo l'API Spotify solo quando serve il controllo del timestamp.
+let controller=null;
+window.onSpotifyIframeApiReady=(IFrameAPI)=>{
+ const temp=document.createElement("div");
+ temp.style.display="none";
+ document.body.appendChild(temp);
+ IFrameAPI.createController(temp,{width:1,height:1,uri:uri},c=>{controller=c;});
+};
+
+play42.onclick=function(){
+ if(controller){
+   status.textContent="Avvio dal secondo 42…";
+   controller.loadEntity(uri,false,42);
+   setTimeout(()=>controller.play(),200);
+ } else {
+   status.textContent="Il controllo 0:42 non è disponibile su questo dispositivo. Il player normale sopra deve comunque funzionare.";
+ }
+};
+
+show(home);
+</script>
+<script src="https://open.spotify.com/embed/iframe-api/v1" async></script>
+</body></html>
